@@ -35,3 +35,16 @@ This game is a PWA (Progressive Web App) — no Play Store needed.
 
 Note: your repo must be **Public** for GitHub Pages' free tier to serve it
 (private repos need GitHub Pro/Team/Enterprise for Pages).
+
+## Playing comfortably on Android
+- **Swipe controls**: swipe up/down/left/right anywhere on the screen — often faster
+  than reaching for the D-pad buttons, especially one-handed
+- **Pause button**: the "II" button in the center of the D-pad pauses/resumes
+  without losing your score
+- **Install it** (see above) rather than just bookmarking the URL — running it as
+  an installed app removes the browser address bar entirely, giving you more
+  screen space and a more native feel
+- Play in **portrait orientation** — the layout is designed for it
+- If your phone has gesture navigation, swipe from further inside the screen
+  (not right at the very edge) to avoid triggering the phone's back gesture
+  instead of a snake turn
