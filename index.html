@@ -266,11 +266,12 @@ function step() {
   if (dir === 'left') head.x--;
   if (dir === 'right') head.x++;
 
-  // hard walls now: hitting the boundary ends the game, no wrap-around
-  if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID) {
-    gameOver();
-    return;
-  }
+  // wrap-around walls: passing an edge brings the snake out the opposite side.
+  // The only way to die is running into your own body.
+  if (head.x < 0) head.x = GRID - 1;
+  if (head.x >= GRID) head.x = 0;
+  if (head.y < 0) head.y = GRID - 1;
+  if (head.y >= GRID) head.y = 0;
 
   if (snake.some(s => s.x === head.x && s.y === head.y)) {
     gameOver();
