@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Nokia Snake</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
@@ -12,8 +12,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
-  * { box-sizing: border-box; }
-  body {
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
     margin: 0;
     min-height: 100vh;
     display: flex;
@@ -21,14 +21,17 @@
     justify-content: center;
     background: #1a1a1a;
     font-family: 'Courier New', monospace;
+    overscroll-behavior: none;
+    touch-action: none;
   }
 
   .phone {
     background: linear-gradient(145deg, #3a3f36, #23261f);
     border-radius: 28px;
-    padding: 22px 18px 34px;
+    padding: 22px 18px 30px;
     box-shadow: 0 20px 40px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.08);
     width: 340px;
+    touch-action: none;
   }
 
   .screen-frame {
@@ -42,7 +45,7 @@
     text-align: center;
     color: #8fae6b;
     font-size: 9px;
-    letter-spacing: 2px;
+    letter-spacing: 1.5px;
     padding-bottom: 4px;
     font-weight: bold;
     text-shadow: 0 0 2px rgba(143,174,107,0.5);
@@ -51,34 +54,26 @@
   canvas {
     display: block;
     width: 100%;
-    background: #9cb380;
     border-radius: 2px;
-  }
-
-  .hud {
-    display: flex;
-    justify-content: space-between;
-    color: #33421f;
-    font-size: 11px;
-    font-weight: bold;
-    padding: 4px 4px 0;
-    letter-spacing: 1px;
+    touch-action: none;
   }
 
   .msg {
     text-align: center;
-    color: #33421f;
+    color: #3a4a1c;
     font-size: 11px;
     padding-top: 6px;
     min-height: 14px;
     letter-spacing: 0.5px;
+    font-weight: bold;
   }
 
+  /* Plus-shaped D-pad with a pause button in the middle */
   .controls {
     display: grid;
-    grid-template-columns: 50px 50px 50px;
-    grid-template-rows: 44px 44px;
-    gap: 8px;
+    grid-template-columns: 52px 52px 52px;
+    grid-template-rows: 44px 44px 44px;
+    gap: 6px;
     justify-content: center;
     margin-top: 18px;
   }
@@ -90,17 +85,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    font-size: 18px;
     user-select: none;
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    active-opacity: 0.8;
   }
   .btn:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(0,0,0,0.5); }
-  .up { grid-column: 2; grid-row: 1; }
-  .left { grid-column: 1; grid-row: 2; }
-  .down { grid-column: 2; grid-row: 2; }
-  .right { grid-column: 3; grid-row: 2; }
+  .up     { grid-column: 2; grid-row: 1; }
+  .left   { grid-column: 1; grid-row: 2; }
+  .pause  { grid-column: 2; grid-row: 2; font-size: 14px; }
+  .right  { grid-column: 3; grid-row: 2; }
+  .down   { grid-column: 2; grid-row: 3; }
 
   .hint {
     text-align: center;
@@ -115,11 +109,7 @@
 
 <div class="phone">
   <div class="screen-frame">
-    <div class="name-label">VIKRAM</div>
-    <div class="hud">
-      <span id="score">SCORE: 0</span>
-      <span id="best">BEST: 0</span>
-    </div>
+    <div class="name-label">FOR VIKRAM, WITH LOVE</div>
     <canvas id="game" width="300" height="300"></canvas>
     <div class="msg" id="msg">TAP TO START</div>
   </div>
@@ -127,35 +117,55 @@
   <div class="controls">
     <div class="btn up" data-dir="up">▲</div>
     <div class="btn left" data-dir="left">◀</div>
-    <div class="btn down" data-dir="down">▼</div>
+    <div class="btn pause" id="pauseBtn">II</div>
     <div class="btn right" data-dir="right">▶</div>
+    <div class="btn down" data-dir="down">▼</div>
   </div>
-  <div class="hint">Arrow keys / WASD also work</div>
+  <div class="hint">Swipe on screen, arrow keys, or WASD also work</div>
 </div>
 
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-const scoreEl = document.getElementById('score');
-const bestEl = document.getElementById('best');
 const msgEl = document.getElementById('msg');
+const pauseBtn = document.getElementById('pauseBtn');
 
-const GRID = 20;
-const CELL = canvas.width / GRID;
+// --- playfield geometry: kept separate from the score/border area above it ---
+const GRID = 18;
+const FIELD_LEFT = 20;
+const FIELD_TOP = 40;
+const FIELD_SIZE = 260;
+const CELL = FIELD_SIZE / GRID;
 
-let snake, dir, nextDir, food, score, best, running, loopId;
+const BG = '#aab52a';
+const INK = '#2a3010';
+
+let snake, dir, nextDir, food, score, best, running, paused, loopId, chompCounter;
 
 best = parseInt(localStorage.getItem('nokia-snake-best') || '0', 10);
-bestEl.textContent = 'BEST: ' + best;
+
+// dot-matrix texture for the body, so it reads as dithered LCD pixels, not flat blocks
+const dotCanvas = document.createElement('canvas');
+dotCanvas.width = 4;
+dotCanvas.height = 4;
+const dctx = dotCanvas.getContext('2d');
+dctx.fillStyle = BG;
+dctx.fillRect(0, 0, 4, 4);
+dctx.fillStyle = INK;
+dctx.fillRect(0, 0, 2, 2);
+dctx.fillRect(2, 2, 2, 2);
+const dotPattern = ctx.createPattern(dotCanvas, 'repeat');
 
 function resetGame() {
-  snake = [{x: 7, y: 7}, {x: 6, y: 7}, {x: 5, y: 7}];
+  snake = [{x: 7, y: 9}, {x: 6, y: 9}, {x: 5, y: 9}];
   dir = 'right';
   nextDir = 'right';
   score = 0;
-  scoreEl.textContent = 'SCORE: 0';
+  chompCounter = 0;
   placeFood();
   running = false;
+  paused = false;
+  pauseBtn.textContent = 'II';
   draw();
   msgEl.textContent = 'TAP TO START';
 }
@@ -163,47 +173,104 @@ function resetGame() {
 function placeFood() {
   let valid = false;
   while (!valid) {
-    food = { x: Math.floor(Math.random() * GRID), y: Math.floor(Math.random() * GRID) };
+    food = {
+      x: 1 + Math.floor(Math.random() * (GRID - 2)),
+      y: 1 + Math.floor(Math.random() * (GRID - 2))
+    };
     valid = !snake.some(s => s.x === food.x && s.y === food.y);
   }
 }
 
+function cellRect(x, y) {
+  return { px: FIELD_LEFT + x * CELL, py: FIELD_TOP + y * CELL };
+}
+
+function drawBodyCell(x, y) {
+  const { px, py } = cellRect(x, y);
+  ctx.fillStyle = dotPattern;
+  ctx.fillRect(px + 1, py + 1, CELL - 2, CELL - 2);
+}
+
+function drawFood(x, y) {
+  const { px, py } = cellRect(x, y);
+  ctx.fillStyle = INK;
+  ctx.fillRect(px + 2, py + 2, CELL - 4, CELL - 4);
+}
+
+// Head with a chomping open mouth, cut out of the leading edge in the direction of travel
+function drawHead(head, facing, open) {
+  const { px, py } = cellRect(head.x, head.y);
+  ctx.fillStyle = INK;
+  ctx.fillRect(px + 1, py + 1, CELL - 2, CELL - 2);
+  if (!open) return;
+
+  const cx = px + CELL / 2, cy = py + CELL / 2;
+  ctx.fillStyle = BG;
+  ctx.beginPath();
+  if (facing === 'right') {
+    ctx.moveTo(cx, cy); ctx.lineTo(px + CELL - 1, py + 2); ctx.lineTo(px + CELL - 1, py + CELL - 2);
+  } else if (facing === 'left') {
+    ctx.moveTo(cx, cy); ctx.lineTo(px + 1, py + 2); ctx.lineTo(px + 1, py + CELL - 2);
+  } else if (facing === 'up') {
+    ctx.moveTo(cx, cy); ctx.lineTo(px + 2, py + 1); ctx.lineTo(px + CELL - 2, py + 1);
+  } else {
+    ctx.moveTo(cx, cy); ctx.lineTo(px + 2, py + CELL - 1); ctx.lineTo(px + CELL - 2, py + CELL - 1);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawScore() {
+  ctx.fillStyle = INK;
+  ctx.font = 'bold 16px "Courier New", monospace';
+  ctx.textBaseline = 'top';
+  ctx.fillText(String(score).padStart(4, '0'), 10, 8);
+}
+
+function drawFrame() {
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1;
+  const top = FIELD_TOP - 8;
+  ctx.strokeRect(6, top, canvas.width - 12, canvas.height - top - 6);
+  ctx.strokeRect(9, top + 3, canvas.width - 18, canvas.height - top - 12);
+  ctx.beginPath();
+  ctx.moveTo(6, FIELD_TOP - 12);
+  ctx.lineTo(canvas.width - 6, FIELD_TOP - 12);
+  ctx.stroke();
+}
+
 function draw() {
-  ctx.fillStyle = '#9cb380';
+  ctx.fillStyle = BG;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // subtle grid dots (Nokia LCD feel)
-  ctx.fillStyle = 'rgba(51,66,31,0.08)';
-  for (let x = 0; x < GRID; x++) {
-    for (let y = 0; y < GRID; y++) {
-      ctx.fillRect(x * CELL, y * CELL, 1, 1);
-    }
-  }
+  drawScore();
+  drawFrame();
+  drawFood(food.x, food.y);
 
-  // food
-  ctx.fillStyle = '#33421f';
-  ctx.fillRect(food.x * CELL + 2, food.y * CELL + 2, CELL - 4, CELL - 4);
-
-  // snake
   snake.forEach((s, i) => {
-    ctx.fillStyle = '#33421f';
-    ctx.fillRect(s.x * CELL + 1, s.y * CELL + 1, CELL - 2, CELL - 2);
+    if (i === 0) {
+      const mouthOpen = chompCounter % 4 < 2;
+      drawHead(s, dir, mouthOpen);
+    } else {
+      drawBodyCell(s.x, s.y);
+    }
   });
 }
 
 function step() {
   dir = nextDir;
+  chompCounter++;
   const head = { ...snake[0] };
   if (dir === 'up') head.y--;
   if (dir === 'down') head.y++;
   if (dir === 'left') head.x--;
   if (dir === 'right') head.x++;
 
-  // wrap-around walls like classic Nokia snake
-  if (head.x < 0) head.x = GRID - 1;
-  if (head.x >= GRID) head.x = 0;
-  if (head.y < 0) head.y = GRID - 1;
-  if (head.y >= GRID) head.y = 0;
+  // hard walls now: hitting the boundary ends the game, no wrap-around
+  if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID) {
+    gameOver();
+    return;
+  }
 
   if (snake.some(s => s.x === head.x && s.y === head.y)) {
     gameOver();
@@ -214,7 +281,6 @@ function step() {
 
   if (head.x === food.x && head.y === food.y) {
     score += 10;
-    scoreEl.textContent = 'SCORE: ' + score;
     placeFood();
   } else {
     snake.pop();
@@ -225,17 +291,17 @@ function step() {
 
 function gameOver() {
   running = false;
+  paused = false;
   clearInterval(loopId);
   if (score > best) {
     best = score;
     localStorage.setItem('nokia-snake-best', best);
-    bestEl.textContent = 'BEST: ' + best;
   }
   msgEl.textContent = 'GAME OVER - TAP TO RETRY';
 }
 
 function startGame() {
-  if (running) return;
+  if (paused || running) return;
   if (msgEl.textContent.includes('OVER')) resetGame();
   running = true;
   msgEl.textContent = '';
@@ -243,7 +309,22 @@ function startGame() {
   loopId = setInterval(step, 140);
 }
 
+function togglePause() {
+  if (!running) return;
+  paused = !paused;
+  if (paused) {
+    clearInterval(loopId);
+    pauseBtn.textContent = '▶';
+    msgEl.textContent = 'PAUSED';
+  } else {
+    pauseBtn.textContent = 'II';
+    msgEl.textContent = '';
+    loopId = setInterval(step, 140);
+  }
+}
+
 function setDir(d) {
+  if (paused) return;
   const opposites = { up: 'down', down: 'up', left: 'right', right: 'left' };
   if (opposites[d] === dir) return;
   nextDir = d;
@@ -254,13 +335,38 @@ document.addEventListener('keydown', (e) => {
   const map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
                 w: 'up', s: 'down', a: 'left', d: 'right' };
   if (map[e.key]) { e.preventDefault(); setDir(map[e.key]); }
+  if (e.key === ' ') { e.preventDefault(); togglePause(); }
 });
 
-document.querySelectorAll('.btn').forEach(btn => {
+document.querySelectorAll('.btn[data-dir]').forEach(btn => {
   btn.addEventListener('click', () => setDir(btn.dataset.dir));
 });
+pauseBtn.addEventListener('click', togglePause);
 
 canvas.addEventListener('click', startGame);
+
+// Swipe controls — easier one-handed play on Android than reaching for the D-pad
+let touchStartX = 0, touchStartY = 0;
+canvas.addEventListener('touchstart', (e) => {
+  const t = e.changedTouches[0];
+  touchStartX = t.clientX;
+  touchStartY = t.clientY;
+}, { passive: true });
+
+canvas.addEventListener('touchend', (e) => {
+  const t = e.changedTouches[0];
+  const dx = t.clientX - touchStartX;
+  const dy = t.clientY - touchStartY;
+  if (Math.abs(dx) < 20 && Math.abs(dy) < 20) {
+    startGame(); // treat as a tap
+    return;
+  }
+  if (Math.abs(dx) > Math.abs(dy)) {
+    setDir(dx > 0 ? 'right' : 'left');
+  } else {
+    setDir(dy > 0 ? 'down' : 'up');
+  }
+}, { passive: true });
 
 resetGame();
 
