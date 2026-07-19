@@ -24,3 +24,14 @@ One-time setup after your first push:
 
 Your live URL will be `https://<your-username>.github.io/<repo-name>/`
 (shown in the Actions run summary and under Settings → Pages once deployed).
+
+## Installing on Android (as a real app)
+This game is a PWA (Progressive Web App) — no Play Store needed.
+
+1. Open your live GitHub Pages URL in **Chrome** on your Android phone
+2. Tap the **⋮** menu → **Install app** (or **Add to Home screen**)
+3. Confirm — an app icon appears on your home screen
+4. Open it from there: it launches fullscreen, no browser bar, and works offline
+
+Note: your repo must be **Public** for GitHub Pages' free tier to serve it
+(private repos need GitHub Pro/Team/Enterprise for Pages).
