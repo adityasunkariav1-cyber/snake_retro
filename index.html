@@ -307,7 +307,7 @@ function startGame() {
   running = true;
   msgEl.textContent = '';
   clearInterval(loopId);
-  loopId = setInterval(step, 140);
+  loopId = setInterval(step, 220);
 }
 
 function togglePause() {
@@ -320,7 +320,7 @@ function togglePause() {
   } else {
     pauseBtn.textContent = 'II';
     msgEl.textContent = '';
-    loopId = setInterval(step, 140);
+    loopId = setInterval(step, 220);
   }
 }
 
