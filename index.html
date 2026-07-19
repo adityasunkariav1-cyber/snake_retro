@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Nokia Snake</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1a1a1a;
+    font-family: 'Courier New', monospace;
+  }
+
+  .phone {
+    background: linear-gradient(145deg, #3a3f36, #23261f);
+    border-radius: 28px;
+    padding: 22px 18px 34px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.08);
+    width: 340px;
+  }
+
+  .screen-frame {
+    background: #0e1a0a;
+    border-radius: 6px;
+    padding: 10px;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+  }
+
+  .name-label {
+    text-align: center;
+    color: #8fae6b;
+    font-size: 9px;
+    letter-spacing: 2px;
+    padding-bottom: 4px;
+    font-weight: bold;
+    text-shadow: 0 0 2px rgba(143,174,107,0.5);
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    background: #9cb380;
+    border-radius: 2px;
+  }
+
+  .hud {
+    display: flex;
+    justify-content: space-between;
+    color: #33421f;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 4px 4px 0;
+    letter-spacing: 1px;
+  }
+
+  .msg {
+    text-align: center;
+    color: #33421f;
+    font-size: 11px;
+    padding-top: 6px;
+    min-height: 14px;
+    letter-spacing: 0.5px;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: 50px 50px 50px;
+    grid-template-rows: 44px 44px;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 18px;
+  }
+  .btn {
+    background: linear-gradient(145deg, #4a5044, #2b2f26);
+    border-radius: 8px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.1);
+    color: #cfd8c0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    user-select: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    active-opacity: 0.8;
+  }
+  .btn:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+  .up { grid-column: 2; grid-row: 1; }
+  .left { grid-column: 1; grid-row: 2; }
+  .down { grid-column: 2; grid-row: 2; }
+  .right { grid-column: 3; grid-row: 2; }
+
+  .hint {
+    text-align: center;
+    color: #6b7263;
+    font-size: 10px;
+    margin-top: 14px;
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="screen-frame">
+    <div class="name-label">VIKRAM</div>
+    <div class="hud">
+      <span id="score">SCORE: 0</span>
+      <span id="best">BEST: 0</span>
+    </div>
+    <canvas id="game" width="300" height="300"></canvas>
+    <div class="msg" id="msg">TAP TO START</div>
+  </div>
+
+  <div class="controls">
+    <div class="btn up" data-dir="up">▲</div>
+    <div class="btn left" data-dir="left">◀</div>
+    <div class="btn down" data-dir="down">▼</div>
+    <div class="btn right" data-dir="right">▶</div>
+  </div>
+  <div class="hint">Arrow keys / WASD also work</div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const bestEl = document.getElementById('best');
+const msgEl = document.getElementById('msg');
+
+const GRID = 15;
+const CELL = canvas.width / GRID;
+
+let snake, dir, nextDir, food, score, best, running, loopId;
+
+best = parseInt(localStorage.getItem('nokia-snake-best') || '0', 10);
+bestEl.textContent = 'BEST: ' + best;
+
+function resetGame() {
+  snake = [{x: 7, y: 7}, {x: 6, y: 7}, {x: 5, y: 7}];
+  dir = 'right';
+  nextDir = 'right';
+  score = 0;
+  scoreEl.textContent = 'SCORE: 0';
+  placeFood();
+  running = false;
+  draw();
+  msgEl.textContent = 'TAP TO START';
+}
+
+function placeFood() {
+  let valid = false;
+  while (!valid) {
+    food = { x: Math.floor(Math.random() * GRID), y: Math.floor(Math.random() * GRID) };
+    valid = !snake.some(s => s.x === food.x && s.y === food.y);
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#9cb380';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // subtle grid dots (Nokia LCD feel)
+  ctx.fillStyle = 'rgba(51,66,31,0.08)';
+  for (let x = 0; x < GRID; x++) {
+    for (let y = 0; y < GRID; y++) {
+      ctx.fillRect(x * CELL, y * CELL, 1, 1);
+    }
+  }
+
+  // food
+  ctx.fillStyle = '#33421f';
+  ctx.fillRect(food.x * CELL + 2, food.y * CELL + 2, CELL - 4, CELL - 4);
+
+  // snake
+  snake.forEach((s, i) => {
+    ctx.fillStyle = '#33421f';
+    ctx.fillRect(s.x * CELL + 1, s.y * CELL + 1, CELL - 2, CELL - 2);
+  });
+}
+
+function step() {
+  dir = nextDir;
+  const head = { ...snake[0] };
+  if (dir === 'up') head.y--;
+  if (dir === 'down') head.y++;
+  if (dir === 'left') head.x--;
+  if (dir === 'right') head.x++;
+
+  // wrap-around walls like classic Nokia snake
+  if (head.x < 0) head.x = GRID - 1;
+  if (head.x >= GRID) head.x = 0;
+  if (head.y < 0) head.y = GRID - 1;
+  if (head.y >= GRID) head.y = 0;
+
+  if (snake.some(s => s.x === head.x && s.y === head.y)) {
+    gameOver();
+    return;
+  }
+
+  snake.unshift(head);
+
+  if (head.x === food.x && head.y === food.y) {
+    score += 10;
+    scoreEl.textContent = 'SCORE: ' + score;
+    placeFood();
+  } else {
+    snake.pop();
+  }
+
+  draw();
+}
+
+function gameOver() {
+  running = false;
+  clearInterval(loopId);
+  if (score > best) {
+    best = score;
+    localStorage.setItem('nokia-snake-best', best);
+    bestEl.textContent = 'BEST: ' + best;
+  }
+  msgEl.textContent = 'GAME OVER - TAP TO RETRY';
+}
+
+function startGame() {
+  if (running) return;
+  if (msgEl.textContent.includes('OVER')) resetGame();
+  running = true;
+  msgEl.textContent = '';
+  clearInterval(loopId);
+  loopId = setInterval(step, 140);
+}
+
+function setDir(d) {
+  const opposites = { up: 'down', down: 'up', left: 'right', right: 'left' };
+  if (opposites[d] === dir) return;
+  nextDir = d;
+  if (!running) startGame();
+}
+
+document.addEventListener('keydown', (e) => {
+  const map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+                w: 'up', s: 'down', a: 'left', d: 'right' };
+  if (map[e.key]) { e.preventDefault(); setDir(map[e.key]); }
+});
+
+document.querySelectorAll('.btn').forEach(btn => {
+  btn.addEventListener('click', () => setDir(btn.dataset.dir));
+});
+
+canvas.addEventListener('click', startGame);
+
+resetGame();
+</script>
+</body>
+</html>
