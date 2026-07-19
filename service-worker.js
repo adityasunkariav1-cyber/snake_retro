@@ -1,4 +1,4 @@
-const CACHE_NAME = "nokia-snake-v2";
+const CACHE_NAME = "nokia-snake-v3";
 const ASSETS = [
   "./index.html",
   "./manifest.json",
