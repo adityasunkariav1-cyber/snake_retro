@@ -14,3 +14,13 @@ A classic Nokia-style Snake game (VIKRAM edition), playable in-browser.
 python3 build.py   # sets up db/scores.db
 open index.html    # or just double-click it
 ```
+
+## Going live (GitHub Pages)
+The workflow now deploys automatically to GitHub Pages on every push to `main`.
+One-time setup after your first push:
+1. Go to your repo → **Settings → Pages**
+2. Under "Build and deployment", set **Source** to **GitHub Actions**
+3. Push to `main` — the workflow builds, verifies the DB, and deploys the game
+
+Your live URL will be `https://<your-username>.github.io/<repo-name>/`
+(shown in the Actions run summary and under Settings → Pages once deployed).
